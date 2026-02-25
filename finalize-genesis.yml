@@ -1,0 +1,42 @@
+---
+- name: "Phase 3b: Finalize Genesis and Fetch Golden Source"
+  hosts: validator
+  become: yes
+  vars:
+    cosmos_user: "sugandha"
+    cosmos_home: "/home/sugandha/.simapp"
+    binary: "/usr/local/bin/fxd"
+    chain_id: "fx-local-1"
+
+  tasks:
+    - name: "1. Verify injected admin key is physically present"
+      ansible.builtin.stat:
+        # Changed this to look for admin.info instead of keyhash
+        path: "{{ cosmos_home }}/keyring-test/admin.info"
+      register: key_check
+
+    - name: "Stop if keys are missing"
+      ansible.builtin.fail:
+        msg: "admin.info not found in {{ cosmos_home }}/keyring-test."
+      when: not key_check.stat.exists
+
+    - name: "2. Add initial funds to the admin account"
+      ansible.builtin.shell: |
+        {{ binary }} genesis add-genesis-account admin 1000000000stake --keyring-backend test --home {{ cosmos_home }}
+      become_user: "{{ cosmos_user }}"
+
+    - name: "3. Create the Genesis Transaction (Gentx)"
+      ansible.builtin.shell: |
+        {{ binary }} genesis gentx admin 100000000stake --chain-id {{ chain_id }} --keyring-backend test --home {{ cosmos_home }}
+      become_user: "{{ cosmos_user }}"
+
+    - name: "4. Finalize Genesis (Collect Gentxs)"
+      ansible.builtin.shell: |
+        {{ binary }} genesis collect-gentxs --home {{ cosmos_home }}
+      become_user: "{{ cosmos_user }}"
+
+    - name: "5. Fetch Golden Genesis back to ThinkPad"
+      ansible.builtin.fetch:
+        src: "{{ cosmos_home }}/config/genesis.json"
+        dest: "./final_genesis.json"
+        flat: yes

@@ -1,0 +1,19 @@
+- name: Synchronize Genesis File
+  hosts: cosmos_nodes
+  become: yes
+  tasks:
+    - name: Fetch finalized genesis from Validator
+      ansible.builtin.fetch:
+        src: /home/sugandha/.simapp/config/genesis.json
+        dest: /tmp/genesis.json
+        flat: yes
+      when: inventory_hostname in groups['validator']
+
+    - name: Push finalized genesis to Sentry and Full Node
+      ansible.builtin.copy:
+        src: /tmp/genesis.json
+        dest: /home/sugandha/.simapp/config/genesis.json
+        owner: sugandha
+        group: sugandha
+        mode: '0644'
+      when: inventory_hostname not in groups['validator']

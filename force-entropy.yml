@@ -1,0 +1,30 @@
+---
+- name: Force Entropy Saturation
+  hosts: validator
+  become: yes
+  tasks:
+    - name: 1. Stop rngd to reconfigure
+      ansible.builtin.systemd:
+        name: rngd
+        state: stopped
+
+    - name: 2. Force rngd to use urandom as a source
+      # This tells rngd: "Don't wait for hardware noise, just use urandom"
+      ansible.builtin.shell: |
+        rngd -r /dev/urandom
+      changed_when: false
+
+    - name: 3. Aggressive Disk I/O (The "Hammer")
+      # Churning the CPU and Disk simultaneously
+      ansible.builtin.shell: |
+        cat /dev/urandom | base64 | head -c 100M > /tmp/entropy_noise.bin
+      async: 5
+      poll: 0
+
+    - name: 4. Check available entropy again
+      ansible.builtin.command: cat /proc/sys/kernel/random/entropy_avail
+      register: entropy_count
+
+    - name: Final Result
+      ansible.builtin.debug:
+        msg: "Entropy Pool is at: {{ entropy_count.stdout }}"

@@ -1,0 +1,57 @@
+---
+- name: Prepare all Cosmos SDK Nodes
+  hosts: cosmos_nodes
+  become: yes
+  tasks:
+    - name: Update DNF cache and install base build tools
+      ansible.builtin.dnf:
+        name:
+          - "@Development Tools"
+          - git
+          - curl
+          - wget
+          - jq
+          - tar
+          - openssl-devel
+          - clang
+          - pkgconf
+        state: present
+        update_cache: yes
+
+    - name: Download and extract Go 1.22
+      ansible.builtin.unarchive:
+        src: https://golang.org/dl/go1.22.0.linux-amd64.tar.gz
+        dest: /usr/local
+        remote_src: yes
+
+    - name: Add Go to system PATH for all users
+      ansible.builtin.copy:
+        dest: /etc/profile.d/go.sh
+        content: "export PATH=$PATH:/usr/local/go/bin"
+        mode: '0644'
+
+- name: Configure the Validator Node for Security (TMKMS)
+  hosts: validator
+  become: yes
+  tasks:
+    - name: Install SoftHSM for Red Hat
+      ansible.builtin.dnf:
+        name: softhsm
+        state: present
+
+    - name: Ensure softhsm group exists
+      ansible.builtin.group:
+        name: softhsm
+        state: present
+
+    - name: Add user to softhsm group
+      ansible.builtin.user:
+        name: sugandha
+        groups: softhsm
+        append: yes
+
+    - name: Install Rust compiler
+      ansible.builtin.shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      become_user: sugandha
+      args:
+        creates: /home/sugandha/.cargo/bin/rustc

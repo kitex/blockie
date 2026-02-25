@@ -1,0 +1,32 @@
+---
+- name: Expedite Key Generation via Native RHEL Tools
+  hosts: validator
+  become: yes
+  tasks:
+    - name: 1. Install rng-tools
+      ansible.builtin.dnf:
+        name: rng-tools
+        state: present
+
+    - name: 2. Enable and start rngd service
+      ansible.builtin.systemd:
+        name: rngd
+        enabled: yes
+        state: started
+
+    - name: 3. Force Entropy Spike (Manual Injection)
+      # We read from urandom and write to a temp file to create I/O "noise"
+      ansible.builtin.shell: |
+        dd if=/dev/urandom of=/tmp/noise.bin bs=1M count=50 conv=fdatasync
+      async: 10
+      poll: 0
+      changed_when: false
+
+    - name: 4. Verify Entropy Level
+      ansible.builtin.command: cat /proc/sys/kernel/random/entropy_avail
+      register: entropy_count
+      changed_when: false
+
+    - name: Display Entropy Level
+      ansible.builtin.debug:
+        msg: "Entropy is now: {{ entropy_count.stdout }} (Success if > 2000)"

@@ -1,0 +1,40 @@
+---
+- name: Extract Identities and Link Nodes
+  hosts: cosmos_nodes
+  become: yes
+  tasks:
+    - name: Get Node ID
+      ansible.builtin.command: /usr/local/bin/fxd tendermint show-node-id
+      register: node_id_output
+      changed_when: false
+
+    - name: Save Node ID as fact
+      ansible.builtin.set_fact:
+        node_id: "{{ node_id_output.stdout }}"
+
+- name: Update Networking Config
+  hosts: cosmos_nodes
+  become: yes
+  vars:
+    # Extract IDs from the facts gathered above
+    val_id: "{{ hostvars[groups['validator'][0]]['node_id'] }}"
+    sen_id: "{{ hostvars[groups['sentry'][0]]['node_id'] }}"
+    
+    # Use the IPs from your hosts.ini
+    val_ip: "192.168.122.197" 
+    sen_ip: "192.168.122.193"
+
+  tasks:
+    - name: Configure Validator Routing (Private)
+      ansible.builtin.lineinfile:
+        path: "/home/sugandha/.simapp/config/config.toml"
+        regexp: '^persistent_peers ='
+        line: 'persistent_peers = "{{ sen_id }}@{{ sen_ip }}:26656"'
+      when: inventory_hostname in groups['validator']
+
+    - name: Configure Sentry Routing (Shield)
+      ansible.builtin.lineinfile:
+        path: "/home/sugandha/.simapp/config/config.toml"
+        regexp: '^persistent_peers ='
+        line: 'persistent_peers = "{{ val_id }}@{{ val_ip }}:26656"'
+      when: inventory_hostname in groups['sentry']

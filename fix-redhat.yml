@@ -1,0 +1,33 @@
+---
+- name: Reset and Re-register Red Hat Subscriptions
+  hosts: cosmos_nodes
+  become: yes
+  vars:
+    rh_user: ""
+    rh_pass: ""
+
+  tasks:
+    - name: 1. Unregister the system
+      ansible.builtin.command: subscription-manager unregister
+      ignore_errors: yes
+
+    - name: 2. Clean local subscription data
+      ansible.builtin.command: subscription-manager clean
+
+    - name: 3. Re-register the VM with your Red Hat Account
+      ansible.builtin.command: >
+        subscription-manager register 
+        --username "{{ rh_user }}" 
+        --password "{{ rh_pass }}"
+      no_log: true 
+
+    - name: 4. Clear the broken package cache
+      ansible.builtin.command: dnf clean all
+
+    - name: 5. Completely remove the DNF cache directory
+      ansible.builtin.file:
+        path: /var/cache/dnf
+        state: absent
+
+    - name: 6. Rebuild the DNF cache to verify connectivity
+      ansible.builtin.command: dnf makecache

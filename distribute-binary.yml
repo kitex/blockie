@@ -1,0 +1,47 @@
+---
+- name: Distribute and Initialize Cosmos SDK Binary
+  hosts: cosmos_nodes
+  become: yes
+  vars:
+    local_binary_path: "~/projects/ansible_playbook/block/cosmos-sdk/build/simd"
+    remote_binary_path: "/usr/local/bin/fxd" # This is where it lives
+    cosmos_user: "sugandha"
+    cosmos_home: "/home/sugandha/.simapp"
+
+  tasks:
+    - name: 1. Copy the binary to /usr/local/bin
+      ansible.builtin.copy:
+        src: "{{ local_binary_path }}"
+        dest: "{{ remote_binary_path }}"
+        mode: '0755' # Explicitly setting execute permissions
+        owner: root
+        group: root
+
+    - name: 2. Create the Cosmos data directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ cosmos_user }}"
+        group: "{{ cosmos_user }}"
+        mode: '0755'
+      loop:
+        - "{{ cosmos_home }}"
+        - "{{ cosmos_home }}/config"
+
+    - name: 3. Initialize the blockchain node
+      # NOTICE: Using full path {{ remote_binary_path }}
+      ansible.builtin.command:
+        cmd: "{{ remote_binary_path }} init {{ inventory_hostname }} --chain-id fx-local-1 --overwrite"
+      become_user: "{{ cosmos_user }}"
+      args:
+        creates: "{{ cosmos_home }}/config/genesis.json"
+
+    - name: 4. Verify the binary version on the remote host
+      # NOTICE: Using full path {{ remote_binary_path }}
+      ansible.builtin.command: "{{ remote_binary_path }} version"
+      register: fxd_version
+      changed_when: false
+
+    - name: Show version info
+      ansible.builtin.debug:
+        msg: "Node {{ inventory_hostname }} is running fxd version {{ fxd_version.stdout }}"

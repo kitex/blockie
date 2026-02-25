@@ -1,0 +1,36 @@
+---
+- name: "Phase 3a: Inject Admin Keys to Validator"
+  hosts: validator
+  become: yes
+  vars:
+    cosmos_user: "sugandha"
+    cosmos_home: "/home/sugandha/.simapp"
+    local_key_dir: "~/cosmos_keys_clean/keyring-test"
+
+  tasks:
+    - name: 1. Ensure remote keyring directory exists
+      ansible.builtin.file:
+        path: "{{ cosmos_home }}/keyring-test"
+        state: directory
+        owner: "{{ cosmos_user }}"
+        group: "{{ cosmos_user }}"
+        mode: '0700'
+
+    - name: 2. Copy key files from ThinkPad to Validator
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ cosmos_home }}/keyring-test/"
+        owner: "{{ cosmos_user }}"
+        group: "{{ cosmos_user }}"
+        mode: '0600'
+      with_fileglob:
+        - "{{ local_key_dir }}/*"
+
+    - name: 3. Verify keys are visible via the fxd binary
+      ansible.builtin.command: "/usr/local/bin/fxd keys list --keyring-backend test --home {{ cosmos_home }}"
+      become_user: "{{ cosmos_user }}"
+      register: key_list
+
+    - name: Show verified keys
+      ansible.builtin.debug:
+        msg: "{{ key_list.stdout_lines }}"

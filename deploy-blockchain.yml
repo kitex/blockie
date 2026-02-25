@@ -1,0 +1,37 @@
+---
+- name: Deploy and Initialize Cosmos SDK Nodes
+  hosts: cosmos_nodes
+  become: yes
+  vars:
+    # Point this to the binary you just built on your host
+    local_binary_path: "~/cosmos-sdk/build/simd" 
+    binary_name: "fxd"
+    chain_id: "fx-local-1"
+
+  tasks:
+    - name: 1. Push the compiled binary to all VMs
+      ansible.builtin.copy:
+        src: "{{ local_binary_path }}"
+        dest: "/usr/local/bin/{{ binary_name }}"
+        mode: '0755'
+
+    - name: 2. Initialize the Validator Node
+      ansible.builtin.command: "{{ binary_name }} init fx-validator --chain-id {{ chain_id }}"
+      become_user: sugandha
+      args:
+        creates: "/home/sugandha/.simapp/config/genesis.json"
+      when: inventory_hostname in groups['validator']
+
+    - name: 3. Initialize the Sentry Node
+      ansible.builtin.command: "{{ binary_name }} init fx-sentry --chain-id {{ chain_id }}"
+      become_user: sugandha
+      args:
+        creates: "/home/sugandha/.simapp/config/genesis.json"
+      when: inventory_hostname in groups['sentry']
+
+    - name: 4. Initialize the Full Node
+      ansible.builtin.command: "{{ binary_name }} init fx-fullnode --chain-id {{ chain_id }}"
+      become_user: sugandha
+      args:
+        creates: "/home/sugandha/.simapp/config/genesis.json"
+      when: inventory_hostname in groups['fullnode']
