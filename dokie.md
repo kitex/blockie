@@ -141,3 +141,16 @@ Execution:
 
 ansible-playbook -i hosts.ini configure-p2p.yml -K
 ```
+
+### Phase 5: Daemonization (`start-network.yml`)
+* **Target:** `hosts: cosmos_nodes`
+* **High-Level Goal:** Wrap the `fxd` application in a standard Linux `systemd` service. This treats the blockchain node like an enterprise application, ensuring background execution, crash recovery, and centralized logging.
+* **Ansible Implementation:**
+    * **Service Creation:** Generated `/etc/systemd/system/fxd.service` to manage the daemon lifecycle.
+    * **Resource Tuning:** Configured the `LimitNOFILE=4096` directive within the service unit. Because blockchain nodes constantly gossip blocks and transactions over P2P TCP connections, raising this limit prevents the node from crashing under the default Linux file descriptor limits.
+    * **State Management:** Reloaded the system daemon and set the `fxd` service to `enabled` (start on boot) and `started`.
+
+**Execution:**
+```bash
+ansible-playbook -i hosts.ini start-network.yml -K
+```
