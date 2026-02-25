@@ -76,7 +76,7 @@ Due to modern RHEL 10 kernel entropy management causing cryptographic generation
 validator
 sentry
 fullnode
-
+```
 
 ### Variable Matrix (`group_vars/all.yml`)
 | Variable Name | Value | Purpose |
@@ -99,6 +99,24 @@ fullnode
 
 ---
 
-## 📈 Next Steps: Phase 4 Distribution (`sync-network.yml`)
-* **Goal:** Distribute the `final_genesis.json` to Sentry and Full Node.
-* **Logic:** Update `persistent_peers` in `config.toml` to link the nodes cryptographically and enable the `systemd` service to start the blockchain.
+---
+
+## 🚀 Phase 4: Network Distribution & Synchronization
+
+With the "Golden Source" genesis file finalized on the ThinkPad, Phase 4 focuses on synchronizing the cluster state across the perimeter and replica nodes.
+
+### Phase 4a: Genesis Distribution (`distribute-genesis.yml`)
+* **Target:** `hosts: sentry, fullnode`
+* **High-Level Goal:** Propagate the cryptographically signed `genesis.json` to all non-validating nodes to ensure the entire cluster shares the same starting block hash.
+* **Ansible Implementation:**
+    * **State Alignment:** Used `ansible.builtin.copy` to push the local `final_genesis.json` (from Phase 3b) to the remote `config/` directories of the Sentry and Full Node.
+    * **Atomic Overwrite:** Applied `backup: yes` to preserve the original blank initialization files while enforcing the new global network state.
+    * **Verification:** Performed directory-level validation to confirm the file permissions allow the `fxd` service to read the state on boot.
+
+
+
+### 🖥️ Ansible Execution
+To distribute the genesis state to the secondary nodes, run:
+
+```bash
+ansible-playbook -i hosts.ini distribute-genesis.yml -K
