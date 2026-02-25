@@ -154,3 +154,7 @@ ansible-playbook -i hosts.ini configure-p2p.yml -K
 ```bash
 ansible-playbook -i hosts.ini start-network.yml -K
 ```
+***Check block height***
+```bash
+ansible validator -i hosts.ini -m command -a "journalctl -u fxd -n 50 --no-pager" -u sugandha
+```
