@@ -120,7 +120,7 @@ To distribute the genesis state to the secondary nodes, run:
 
 ```bash
 ansible-playbook -i hosts.ini distribute-genesis.yml -K
-
+```
 
 ### Phase 4b: P2P Network Handshake (`configure-p2p.yml`)
 * **Target:** `hosts: cosmos_nodes`
@@ -130,12 +130,14 @@ ansible-playbook -i hosts.ini distribute-genesis.yml -K
   **Command to retrieve Node IDs:**
   ```bash
   ansible cosmos_nodes -i hosts.ini -m shell -a "/usr/local/bin/fxd tendermint show-node-id --home /home/sugandha/.simapp" -u sugandha
+  ```
 
 Ansible Implementation: * Topology Enforcement: Modified config.toml to link the Validator and Full Node exclusively through the Sentry node.
 
         Stealth Configuration: Set private_peer_ids on the Sentry to ensure the Validator's metadata is never gossiped to the public network.
 
 Execution:
-Bash
+```Bash
 
 ansible-playbook -i hosts.ini configure-p2p.yml -K
+```
