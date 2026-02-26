@@ -142,6 +142,30 @@ Execution:
 ansible-playbook -i hosts.ini configure-p2p.yml -K
 ```
 
+## Not required
+### Phase 4c: Port & API Gateway Configuration (`configure-ports.yml`)
+* **Target:** `hosts: cosmos_nodes`
+* **High-Level Goal:** Enforce the "Two Front Doors" architecture by opening application APIs exclusively on the Full Node, while strictly locking down the Validator and Sentry to P2P traffic only.
+* **Ansible Implementation:**
+    * **Full Node (API Gateway):** * Modified `config.toml` to bind the Tendermint RPC to `0.0.0.0:26657`, allowing external wallets to query the chain.
+        * Modified `app.toml` under the `[api]` section to set `enable = true` and bind the REST server to `0.0.0.0:1317`.
+    * **Validator & Sentry (Air-Gapped Core & P2P Firewall):** * Enforced strict `127.0.0.1:26657` bindings in `config.toml` to ensure they silently drop any external web requests.
+    * **State Management:** Automatically restarted the `fxd` systemd services to apply the new network bindings.
+
+**Execution:**
+```bash
+ansible-playbook -i hosts.ini configure-ports.yml -K
+```
+
+Port Mapping Summary:
+| Node Type | P2P (26656) | RPC (26657) | REST API (1317) |
+| :--- | :--- | :--- | :--- |
+| Full Node | Open (0.0.0.0) | Open (0.0.0.0) | Open (0.0.0.0) |
+| Sentry | Open (0.0.0.0) | Closed (127.0.0.1) | Closed |
+| Validator | Open (Sentry only) | Closed (127.0.0.1) | Closed |
+
+##N
+
 ### Phase 5: Daemonization (`start-network.yml`)
 * **Target:** `hosts: cosmos_nodes`
 * **High-Level Goal:** Wrap the `fxd` application in a standard Linux `systemd` service. This treats the blockchain node like an enterprise application, ensuring background execution, crash recovery, and centralized logging.
@@ -215,43 +239,4 @@ graph TD
 
 This lab simulates an enterprise-grade blockchain topology consisting of three distinct node types. The architecture implements a "Sentry Node" design to protect the Validator from direct public internet exposure, while integrating hardware security module (HSM) concepts for key management.
 
-```mermaid
-graph TD
-    %% Styling
-    classDef secure fill:#ffeaa7,stroke:#d35400,stroke-width:2px;
-    classDef shield fill:#dfe6e9,stroke:#636e72,stroke-width:2px;
-    classDef public fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#fff;
-    classDef component fill:#fff,stroke:#2d3436,stroke-width:1px;
 
-    %% Validator Subgraph
-    subgraph Validator["🛡️ Validator Node (Air-Gapped Core) <br> IP: 192.168.122.197"]
-        direction TB
-        fxd_val("fxd Daemon<br>(Block Producer)"):::component
-        hsm["SoftHSMv2<br>(Crypto Isolation)"]:::component
-        priv_key[("priv_validator_key.json<br>(Signing Key)")]:::component
-        
-        %% Internal Validator Flow
-        fxd_val -.->|Signature Requests| hsm
-        hsm -.->|Secures| priv_key
-    end
-
-    %% Sentry Subgraph
-    subgraph Sentry["🚧 Sentry Node (Perimeter Defense) <br> IP: 192.168.122.193"]
-        fxd_sentry("fxd Daemon<br>(Stealth Mode Proxy)"):::component
-    end
-
-    %% Full Node Subgraph
-    subgraph FullNode["🌐 Full Node (Public Replica) <br> IP: 192.168.122.224"]
-        fxd_full("fxd Daemon<br>(RPC/REST Server)"):::component
-        public_users(("External Users / dApps"))
-    end
-
-    %% P2P Network Flow
-    fxd_val <==>|Private P2P Tunnel<br>TCP Port: 26656| fxd_sentry
-    fxd_sentry <==>|Public P2P Gossip<br>TCP Port: 26656| fxd_full
-    public_users == |Query/Tx Submission<br>TCP Port: 26657 / 1317| ==> fxd_full
-
-    %% Apply Classes
-    class Validator secure;
-    class Sentry shield;
-    class FullNode public;
