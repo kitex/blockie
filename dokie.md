@@ -289,4 +289,7 @@ sleep 5
 echo "Querying final balance..."
 fxd query bank balances $RECEIVER_ADDRESS --node tcp://192.168.122.224:26657
 
-
+Stop all network
+```bash
+ansible-playbook -i hosts.ini stop-network.yml -K
+```
