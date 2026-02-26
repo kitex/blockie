@@ -240,3 +240,53 @@ graph TD
 This lab simulates an enterprise-grade blockchain topology consisting of three distinct node types. The architecture implements a "Sentry Node" design to protect the Validator from direct public internet exposure, while integrating hardware security module (HSM) concepts for key management.
 
 
+Start mining:
+Open port:
+```bash
+ansible cosmos_nodes -i hosts.ini -b -m shell -a "firewall-cmd --add-port=26656-26657/tcp --permanent && firewall-cmd --add-port=1317/tcp --permanent && firewall-cmd --reload" -K
+```
+
+Open port
+```bash
+ansible fullnode -i hosts.ini -b -m shell -a "sed -i 's|laddr = \"tcp://127.0.0.1:26657\"|laddr = \"tcp://0.0.0.0:26657\"|g' /home/sugandha/.simapp/config/config.toml && systemctl restart fxd" -K
+```
+
+Allow local mint
+```bash
+ansible cosmos_nodes -i hosts.ini -b -m shell -a "sed -i 's/addr_book_strict = true/addr_book_strict = false/g' /home/sugandha/.simapp/config/config.toml && systemctl restart fxd" -K
+```
+
+Query balance:
+```bash
+fxd query bank balances cosmos1u2pr0huppn7t3uyapq5qg33znvqqms3w7qxlkc --node tcp://192.168.122.224:26657
+```
+
+
+Create wallet:
+### The Victory Lap: Let's Move Some Funds
+
+Since the network is perfectly synced, let's actually write data to your blockchain by sending a transaction through your API Gateway. 
+
+**Note:** Execute this script directly from your Validator VM.
+
+```bash
+# 1. Create a "Receiver" Wallet and save the address to a variable
+RECEIVER_ADDRESS=$(fxd keys add receiver --keyring-backend test --home /home/sugandha/.simapp --output json | jq -r '.address')
+echo "New Receiver Address: $RECEIVER_ADDRESS"
+```
+# 2. Send 50,000 Stake through the Full Node
+fxd tx bank send admin $RECEIVER_ADDRESS 50000stake \
+  --chain-id fx-local-1 \
+  --node tcp://192.168.122.224:26657 \
+  --keyring-backend test \
+  --home /home/sugandha/.simapp \
+  --yes
+
+# Wait 5 seconds to allow the Validator to bake the transaction into a block
+sleep 5
+
+# 3. Verify the Transfer by querying the Full Node
+echo "Querying final balance..."
+fxd query bank balances $RECEIVER_ADDRESS --node tcp://192.168.122.224:26657
+
+
