@@ -1,0 +1,25 @@
+---
+- name: "Host Maintenance: Gracefully Shutdown KVM VMs"
+  hosts: localhost
+  connection: local
+  become: yes
+  vars:
+    vm_nodes:
+      - validator
+      - sentry
+      - fullnode
+
+  tasks:
+    - name: "Gracefully shut down each VM"
+      ansible.builtin.command: "virsh shutdown {{ item }}"
+      loop: "{{ vm_nodes }}"
+      failed_when: false # Don't fail if the VM is already off
+
+    - name: "Wait for VMs to turn off"
+      ansible.builtin.shell: "virsh list --name --state-running"
+      register: running_vms
+      until: "item not in running_vms.stdout"
+      retries: 12
+      delay: 5
+      loop: "{{ vm_nodes }}"
+      changed_when: false

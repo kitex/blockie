@@ -1,0 +1,43 @@
+---
+- name: "Phase 4b: Link P2P Network"
+  hosts: cosmos_nodes
+  become: yes
+  vars:
+    cosmos_home: "/home/sugandha/.simapp"
+    # Mapping the IDs you just retrieved
+    val_id: "ea886ae3c43c2578fcfd90c05161eb17ae7c089f"
+    sentry_id: "1e800882844f803e7a809193a86016dc498d2c38"
+    full_id: "228a511b22fcee81d14c933cd97cf4ee6c8debbc"
+    
+    val_ip: "192.168.122.197"
+    sentry_ip: "192.168.122.193"
+    full_ip: "192.168.122.224"
+
+  tasks:
+    - name: "1. Validator: Connect ONLY to Sentry"
+      ansible.builtin.lineinfile:
+        path: "{{ cosmos_home }}/config/config.toml"
+        regexp: '^persistent_peers ='
+        line: 'persistent_peers = "{{ sentry_id }}@{{ sentry_ip }}:26656"'
+      when: "'validator' in group_names"
+
+    - name: "2. Sentry: Connect to Validator and Full Node"
+      ansible.builtin.lineinfile:
+        path: "{{ cosmos_home }}/config/config.toml"
+        regexp: '^persistent_peers ='
+        line: 'persistent_peers = "{{ val_id }}@{{ val_ip }}:26656,{{ full_id }}@{{ full_ip }}:26656"'
+      when: "'sentry' in group_names"
+
+    - name: "3. Full Node: Connect to Sentry"
+      ansible.builtin.lineinfile:
+        path: "{{ cosmos_home }}/config/config.toml"
+        regexp: '^persistent_peers ='
+        line: 'persistent_peers = "{{ sentry_id }}@{{ sentry_ip }}:26656"'
+      when: "'fullnode' in group_names"
+
+    - name: "4. Stealth Mode: Hide Validator ID on Sentry"
+      ansible.builtin.lineinfile:
+        path: "{{ cosmos_home }}/config/config.toml"
+        regexp: '^private_peer_ids ='
+        line: 'private_peer_ids = "{{ val_id }}"'
+      when: "'sentry' in group_names"

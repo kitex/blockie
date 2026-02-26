@@ -1,0 +1,20 @@
+---
+- name: "Maintenance: Stop the Blockchain Network"
+  hosts: cosmos_nodes
+  become: yes
+
+  tasks:
+    - name: "Stop the fxd service"
+      ansible.builtin.systemd:
+        name: "fxd"
+        state: stopped
+
+    - name: "Verify service is inactive"
+      ansible.builtin.command: systemctl is-active fxd
+      register: service_status
+      failed_when: false
+      changed_when: false
+
+    - name: "Show status"
+      ansible.builtin.debug:
+        msg: "Node {{ inventory_hostname }} status is {{ service_status.stdout }}"

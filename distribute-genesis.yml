@@ -1,0 +1,26 @@
+---
+- name: "Phase 4a: Distribute Golden Genesis"
+  # Notice we are ONLY targeting the sentry and fullnode groups here
+  hosts: sentry, fullnode
+  become: yes
+  vars:
+    cosmos_user: "sugandha"
+    cosmos_home: "/home/sugandha/.simapp"
+
+  tasks:
+    - name: "1. Push Golden Genesis to nodes"
+      ansible.builtin.copy:
+        src: "./final_genesis.json"
+        dest: "{{ cosmos_home }}/config/genesis.json"
+        owner: "{{ cosmos_user }}"
+        group: "{{ cosmos_user }}"
+        mode: '0644'
+        backup: yes
+
+    - name: "2. Verify file was placed"
+      ansible.builtin.command: "ls -lh {{ cosmos_home }}/config/genesis.json"
+      register: gen_check
+
+    - name: "Show confirmation"
+      ansible.builtin.debug:
+        msg: "Genesis file successfully distributed: {{ gen_check.stdout }}"

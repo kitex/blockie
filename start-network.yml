@@ -1,0 +1,41 @@
+---
+- name: "Phase 5: Daemonize and Start the Blockchain"
+  hosts: cosmos_nodes
+  become: yes
+  vars:
+    cosmos_user: "sugandha"
+    cosmos_home: "/home/sugandha/.simapp"
+    binary: "/usr/local/bin/fxd"
+
+  tasks:
+    - name: "1. Create the systemd service file"
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/fxd.service"
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Cosmos SDK fxd Node
+          After=network-online.target
+
+          [Service]
+          User={{ cosmos_user }}
+          ExecStart={{ binary }} start --home {{ cosmos_home }}
+          Restart=on-failure
+          RestartSec=3
+          # Blockchains need to open many P2P TCP connections
+          LimitNOFILE=4096
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: "2. Reload systemd to recognize the new service"
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: "3. Enable and start the fxd service"
+      ansible.builtin.systemd:
+        name: "fxd"
+        enabled: yes
+        state: restarted
