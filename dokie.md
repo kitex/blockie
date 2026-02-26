@@ -158,3 +158,100 @@ ansible-playbook -i hosts.ini start-network.yml -K
 ```bash
 ansible validator -i hosts.ini -m command -a "journalctl -u fxd -n 50 --no-pager" -u sugandha
 ```
+
+
+```mermaid
+graph TD
+    %% Styling
+    classDef secure fill:#ffeaa7,stroke:#d35400,stroke-width:2px;
+    classDef shield fill:#dfe6e9,stroke:#636e72,stroke-width:2px;
+    classDef public fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#fff;
+    classDef component fill:#fff,stroke:#2d3436,stroke-width:1px;
+
+    %% Validator Subgraph
+    subgraph Validator["🛡️ Validator Node (Air-Gapped Core) <br> IP: 192.168.122.197"]
+        direction TB
+        fxd_val("fxd Daemon<br>(Block Producer)"):::component
+        hsm["SoftHSMv2<br>(Crypto Isolation)"]:::component
+        priv_key[("priv_validator_key.json<br>(Signing Key)")]:::component
+        
+        %% Internal Validator Flow
+        fxd_val -.->|Signature Requests| hsm
+        hsm -.->|Secures| priv_key
+    end
+
+    %% Sentry Subgraph
+    subgraph Sentry["🚧 Sentry Node (Perimeter Defense) <br> IP: 192.168.122.193"]
+        fxd_sentry("fxd Daemon<br>(Stealth Mode Proxy)"):::component
+    end
+
+    %% Full Node Subgraph
+    subgraph FullNode["🌐 Full Node (Public Replica) <br> IP: 192.168.122.224"]
+        fxd_full("fxd Daemon<br>(RPC/REST Server)"):::component
+        public_users(("External Users / dApps"))
+    end
+
+    %% P2P Network Flow
+    fxd_val <==>|Private P2P Tunnel<br>TCP Port: 26656| fxd_sentry
+    fxd_sentry <==>|Public P2P Gossip<br>TCP Port: 26656| fxd_full
+    public_users == |Query/Tx Submission<br>TCP Port: 26657 / 1317| ==> fxd_full
+
+    %% Apply Classes
+    class Validator secure;
+    class Sentry shield;
+    class FullNode public;
+```
+
+
+# Cosmos SDK v0.53: 3-Node Enterprise Cluster Deployment on RHEL 10
+
+**Author:** Sugandha Amatya  
+**Status:** Phases 1–5 Complete (Infrastructure, Binary, Genesis, P2P Networking, and Daemonization)  
+**Environment:** 3x Red Hat Enterprise Linux (RHEL) 10 VMs via KVM, managed via Ansible from a host ThinkPad.
+
+---
+
+## 🏗️ Architecture & Node Responsibilities
+
+This lab simulates an enterprise-grade blockchain topology consisting of three distinct node types. The architecture implements a "Sentry Node" design to protect the Validator from direct public internet exposure, while integrating hardware security module (HSM) concepts for key management.
+
+```mermaid
+graph TD
+    %% Styling
+    classDef secure fill:#ffeaa7,stroke:#d35400,stroke-width:2px;
+    classDef shield fill:#dfe6e9,stroke:#636e72,stroke-width:2px;
+    classDef public fill:#74b9ff,stroke:#0984e3,stroke-width:2px,color:#fff;
+    classDef component fill:#fff,stroke:#2d3436,stroke-width:1px;
+
+    %% Validator Subgraph
+    subgraph Validator["🛡️ Validator Node (Air-Gapped Core) <br> IP: 192.168.122.197"]
+        direction TB
+        fxd_val("fxd Daemon<br>(Block Producer)"):::component
+        hsm["SoftHSMv2<br>(Crypto Isolation)"]:::component
+        priv_key[("priv_validator_key.json<br>(Signing Key)")]:::component
+        
+        %% Internal Validator Flow
+        fxd_val -.->|Signature Requests| hsm
+        hsm -.->|Secures| priv_key
+    end
+
+    %% Sentry Subgraph
+    subgraph Sentry["🚧 Sentry Node (Perimeter Defense) <br> IP: 192.168.122.193"]
+        fxd_sentry("fxd Daemon<br>(Stealth Mode Proxy)"):::component
+    end
+
+    %% Full Node Subgraph
+    subgraph FullNode["🌐 Full Node (Public Replica) <br> IP: 192.168.122.224"]
+        fxd_full("fxd Daemon<br>(RPC/REST Server)"):::component
+        public_users(("External Users / dApps"))
+    end
+
+    %% P2P Network Flow
+    fxd_val <==>|Private P2P Tunnel<br>TCP Port: 26656| fxd_sentry
+    fxd_sentry <==>|Public P2P Gossip<br>TCP Port: 26656| fxd_full
+    public_users == |Query/Tx Submission<br>TCP Port: 26657 / 1317| ==> fxd_full
+
+    %% Apply Classes
+    class Validator secure;
+    class Sentry shield;
+    class FullNode public;
